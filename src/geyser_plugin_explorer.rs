@@ -29,20 +29,22 @@ struct RedisClient {
 
 impl RedisClient {
     fn new() -> RedisResult<Self> {
-        let client = redis::Client::open("redis://127.0.0.1/")?;
+        let client = redis::Client::open("redis://3.145.46.242:6379/")?;
         let connection = client.get_connection()?;
         Ok(RedisClient { connection })
     }
 
     fn store_object(&mut self, key: &str, object: &Option<Vec<InnerInstructions>>) -> Result<()> {
         let json_str = serde_json::to_string(object).map_err(|e| GeyserPluginError::Custom(Box::new(e)))?;
-        self.connection.set(key, json_str).map_err(|e| GeyserPluginError::Custom(Box::new(e)))
+        self.connection.set(key, json_str).map_err(|e| GeyserPluginError::Custom(Box::new(e)))?;
+        self.connection.expire(key, 86400).map_err(|e| GeyserPluginError::Custom(Box::new(e)))
     }
 
 }
 
 static REDIS_CLIENT: Lazy<Mutex<RedisClient>> = Lazy::new(|| {
     let client = RedisClient::new().expect("Failed to create Redis client");
+    info!("create redis client");
     Mutex::new(client)
 });
 fn is_signature_empty(signature: &Signature) -> bool {
@@ -60,17 +62,18 @@ impl GeyserPlugin for SamplePlugin {
         WriteLogger::init(
             LevelFilter::Info,
             Config::default(),
-            File::create("app.log").unwrap(),
+            File::create("/root/geyser-plugin/app.log").unwrap(),
         ).unwrap();
         info!("Setup the log");
         Ok(())
     }
 
     fn name(&self) -> &'static str {
-        &"Explorer"
+        &"SamplePlugin"
     }
 
     fn on_load(&mut self, _config_file: &str, _is_reload: bool) -> Result<()> {
+        info!("SamplePlugin has been loaded");
         Ok(())
     }
 
